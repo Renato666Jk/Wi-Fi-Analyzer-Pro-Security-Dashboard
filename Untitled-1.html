@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wi-Fi Analyzer Pro - Dashboard</title>
+    <!-- Fonte Moderna do Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="sidebar">
+        <div class="logo">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+                <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                <line x1="12" y1="20" x2="12.01" y2="20"></line>
+            </svg>
+            <h2>Analyzer Pro</h2>
+        </div>
+        <nav>
+            <a href="#" id="menu-radar" onclick="switchTab('radar')" class="active">Radar Wi-Fi</a>
+            <a href="#" id="menu-lan" onclick="switchTab('lan')">Scanner Câmeras LAN <span class="badge badge-red"
+                    style="font-size: 10px; padding: 2px 6px; margin-left: 5px;">NOVO!</span></a>
+            <a href="/api/export" target="_blank"
+                onclick="setTimeout(() => { if(document.getElementById('stat-total').innerText === '0') alert('Você deve apertar o botão de Escanear primeiro!')}, 100)">Exportar
+                Excel (CSV)</a>
+            <a href="#" onclick="alert('Em breve: Configurações de Senhas de Roteadores')">Configurações</a>
+        </nav>
+    </div>
+
+    <main class="content">
+        <!-- ABA RADAR WI-FI -->
+        <div id="tab-radar">
+            <header>
+                <div>
+                    <h1>Dashboard de Redes</h1>
+                    <p id="interface-name">Interface: Aguardando scan para identificar placa de rede...</p>
+                </div>
+                <button id="scan-btn" class="btn-primary" onclick="startScan()">
+                    <span>Escanear Ambiente Agora</span>
+                    <div class="spinner hide" id="spinner"></div>
+                </button>
+            </header>
+
+            <div class="stats-grid" id="stats-grid">
+                <div class="stat-card">
+                    <h3>Total de Redes na Área</h3>
+                    <p class="value" id="stat-total">0</p>
+                </div>
+                <div class="stat-card warning-card">
+                    <h3>Redes Vulneráveis (Risco)</h3>
+                    <p class="value" id="stat-vuln">0</p>
+                </div>
+                <div class="stat-card success-card">
+                    <h3>Sinal Premium (Excelente)</h3>
+                    <p class="value" id="stat-excel">0</p>
+                </div>
+            </div>
+
+            <div class="charts-grid hide" id="charts-container">
+                <div class="chart-card">
+                    <h3>Distribuição de Segurança</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="securityChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Top 5 Sinais (Mais Potentes)</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="signalChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NOVO: Radar Visual (Sonar) -->
+            <div class="radar-visual-container hide" id="radar-visual-container">
+                <div class="radar-box">
+                    <div class="radar-sweep"></div>
+                    <div class="radar-circle circle-1"></div>
+                    <div class="radar-circle circle-2"></div>
+                    <div class="radar-circle circle-3"></div>
+                    <div class="radar-circle circle-4"></div>
+                    <div class="radar-cross-h"></div>
+                    <div class="radar-cross-v"></div>
+                    <div id="radar-points-layer"></div>
+                    <div class="radar-center">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2L12 22M2 12L22 12"></path>
+                            <circle cx="12" cy="12" r="3" fill="var(--primary)"></circle>
+                        </svg>
+                    </div>
+                </div>
+                <div class="radar-legend">
+                    <div class="legend-item"><span class="dot d-green"></span> Excelente</div>
+                    <div class="legend-item"><span class="dot d-yellow"></span> Médio</div>
+                    <div class="legend-item"><span class="dot d-red"></span> Fraco</div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table id="networks-table">
+                    <thead>
+                        <tr>
+                            <th>Nome da Rede (SSID)</th>
+                            <th>Fabricante / BSSID</th>
+                            <th>Nível de Segurança</th>
+                            <th>Força do Sinal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <tr class="empty-state">
+                            <td colspan="4">Clique no botão "Escanear Ambiente Agora" ali em cima para começar.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ABA SCANNER LAN (CÂMERAS) -->
+        <div id="tab-lan" class="hide">
+            <header>
+                <div>
+                    <h1>Scanner de Câmeras LAN</h1>
+                    <p>Detecte dispositivos espiões, paineis expostos e Câmeras ocultas no Wi-Fi atual.</p>
+                </div>
+                <button id="scan-lan-btn" class="btn-primary" style="background-color: var(--red);"
+                    onclick="startLanScan()">
+                    <span>Vasculhar Câmeras Agora</span>
+                    <div class="spinner hide" id="lan-spinner"></div>
+                </button>
+            </header>
+
+            <div class="table-container">
+                <table id="lan-table">
+                    <thead>
+                        <tr>
+                            <th>Endereço IP Local</th>
+                            <th>Fabricante (MAC)</th>
+                            <th>Portas Abertas (Risco)</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lan-table-body">
+                        <tr class="empty-state">
+                            <td colspan="4">Conecte-se a uma Wi-Fi e clique em vasculhar. Buscando portas 80, 8080 e
+                                554!</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let securityChart = null;
+        let signalChart = null;
+
+        function switchTab(tabId) {
+            // Controle de Botões do Menu
+            document.getElementById('menu-radar').classList.remove('active');
+            document.getElementById('menu-lan').classList.remove('active');
+            document.getElementById('menu-' + tabId).classList.add('active');
+
+            // Controle de Exibição das Abas
+            document.getElementById('tab-radar').classList.add('hide');
+            document.getElementById('tab-lan').classList.add('hide');
+            document.getElementById('tab-' + tabId).classList.remove('hide');
+        }
+
+        async function startLanScan() {
+            const btn = document.getElementById('scan-lan-btn');
+            const spinner = document.getElementById('lan-spinner');
+            const tbody = document.getElementById('lan-table-body');
+
+            btn.classList.add('loading');
+            spinner.classList.remove('hide');
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center">Vasculhando todos os computadores na rede atual. Isso pode levar de 5 a 10 segundos...</td></tr>`;
+
+            try {
+                const response = await fetch('/api/scan_lan');
+                const data = await response.json();
+
+                if (data.success) {
+                    tbody.innerHTML = '';
+                    if (data.devices.length === 0) {
+                        tbody.innerHTML = `<tr class="empty-state"><td colspan="4">Nenhum aparelho suspeito com porta Web/Vídeo aberta foi encontrado.</td></tr>`;
+                        return;
+                    }
+
+                    data.devices.forEach(dev => {
+                        const tr = document.createElement('tr');
+                        // Destaca em vermelho se for provavel câmera!
+                        const badgeColor = dev.is_cam === 'sim' ? 'badge-red' : 'badge-yellow';
+                        const dangerText = dev.is_cam === 'sim' ? '!! ALERTA CÂMERA !!' : 'Equipamento Mapeado';
+
+                        tr.innerHTML = `
+                            <td>
+                                <strong>${dev.ip}</strong>
+                                <br><small class="text-muted">${dangerText}</small>
+                            </td>
+                            <td>
+                                <div class="col-stack">
+                                    <span>${dev.fabricante}</span>
+                                    <small>${dev.mac}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge ${badgeColor}">${dev.type} (P: ${dev.ports})</span>
+                            </td>
+                            <td>
+                                <div style="display: flex; gap: 8px;">
+                                    <a href="${dev.url}" target="_blank" style="text-decoration: none;">
+                                        <button class="btn-primary" style="padding: 8px 16px; font-size: 13px;">Acessar</button>
+                                    </a>
+                                    <button class="btn-primary" style="padding: 8px 16px; font-size: 13px; background-color: var(--yellow-text);" onclick="auditDevice('${dev.ip}')">Auditar Falhas</button>
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="4" class="text-center text-red">Erro: ${data.error}</td></tr>`;
+                }
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center text-red">Erro crítico: Python Offline.</td></tr>`;
+            } finally {
+                btn.classList.remove('loading');
+                spinner.classList.add('hide');
+            }
+        }
+
+        async function auditDevice(ip) {
+            alert(`Iniciando testes de intrusão rápidos em ${ip}. Aguarde alguns segundos...`);
+            try {
+                const response = await fetch(`/api/audit/${ip}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const relatorioStr = data.audit.join('\n\n');
+                    alert(`RELATÓRIO DE AUDITORIA DE SEGURANÇA (${ip}):\n\n${relatorioStr}`);
+                } else {
+                    alert(`Falha ao auditar: ${data.error}`);
+                }
+            } catch (err) {
+                alert(`Erro de conexão ao tentar auditar o equipamento.`);
+            }
+        }
+
+        async function startScan() {
+            const btn = document.getElementById('scan-btn');
+            const spinner = document.getElementById('spinner');
+            const tbody = document.getElementById('table-body');
+
+            // Estado visual de carregamento UI
+            btn.classList.add('loading');
+            spinner.classList.remove('hide');
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center">Escaneando o ambiente ao seu redor... (Isso leva cerca de 5 segundos)</td></tr>`;
+
+            try {
+                // Chama a API Python escondida por baixo dos panos!
+                const response = await fetch('/api/scan');
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('interface-name').innerText = `📡 Conectado na Interface Wi-Fi: ${data.interface}`;
+                    updateTable(data.networks);
+                    updateStats(data.networks);
+                    updateCharts(data.networks);
+                    updateRadar(data.networks); // Chama o novo radar visual
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="4" class="text-center text-red">Erro retornado pelo Python: ${data.error}</td></tr>`;
+                }
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center text-red">Erro interno. O Backend Python (Flask) não está rodando!</td></tr>`;
+            } finally {
+                // Remove o modo loading e devolve a tela pro usuario
+                btn.classList.remove('loading');
+                spinner.classList.add('hide');
+            }
+        }
+
+        function updateTable(networks) {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            if (networks.length === 0) {
+                tbody.innerHTML = `<tr class="empty-state"><td colspan="4">Nenhuma rede vizinha encontrada.</td></tr>`;
+                return;
+            }
+
+            networks.forEach(net => {
+                const row = document.createElement('tr');
+
+                // Colorindo as barras de Wi-Fi de forma dinâmica baseado na força
+                let barColor = '#3b82f6'; // Azul primario
+                if (net.quality < 35) barColor = '#ef4444'; // Vermelho (Péssimo)
+                else if (net.quality < 65) barColor = '#eab308'; // Amarelo (Médio)
+                else barColor = '#22c55e'; // Verde (Excelente)
+
+                // Colorindo badge (etiqueta) de segurança
+                const secBadgeClass = net.security.level === 'Seguro' ? 'badge-green' :
+                    net.security.level === 'Vulneravel' ? 'badge-red' : 'badge-yellow';
+
+                row.innerHTML = `
+                    <td><strong>${net.ssid}</strong></td>
+                    <td>
+                        <div class="col-stack">
+                            <span>${net.fabricante}</span>
+                            <small>${net.bssid}</small>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge ${secBadgeClass}">${net.security.protocol}</span>
+                    </td>
+                    <td>
+                        <div class="signal-wrapper">
+                            <span>${net.signal} dBm</span>
+                            <div class="progress-bg">
+                                <div class="progress-fill" style="width: ${net.quality}%; background-color: ${barColor};"></div>
+                            </div>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateStats(networks) {
+            document.getElementById('stat-total').innerText = networks.length;
+            document.getElementById('stat-vuln').innerText = networks.filter(n => n.security.level === 'Vulneravel').length;
+            document.getElementById('stat-excel').innerText = networks.filter(n => n.quality >= 75).length;
+        }
+
+        function updateCharts(networks) {
+            // Mostra a grade de graficos que comeca escondida
+            document.getElementById('charts-container').classList.remove('hide');
+
+            // Grafico 1: Pizza de Seguranca
+            const secCounts = { Seguro: 0, Obsoleto: 0, Vulneravel: 0 };
+            networks.forEach(n => {
+                if (n.security.level === 'Seguro') secCounts.Seguro++;
+                else if (n.security.level === 'Vulneravel') secCounts.Vulneravel++;
+                else secCounts.Obsoleto++;
+            });
+
+            const ctxSec = document.getElementById('securityChart').getContext('2d');
+            if (securityChart) securityChart.destroy();
+            securityChart = new Chart(ctxSec, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Seguro', 'Obsoleto', 'Vulnerável'],
+                    datasets: [{
+                        data: [secCounts.Seguro, secCounts.Obsoleto, secCounts.Vulneravel],
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+
+            // Grafico 2: Barras
+            const top5 = networks.slice(0, 5);
+            const ctxSig = document.getElementById('signalChart').getContext('2d');
+            if (signalChart) signalChart.destroy();
+            signalChart = new Chart(ctxSig, {
+                type: 'bar',
+                data: {
+                    labels: top5.map(n => n.ssid.substring(0, 15)),
+                    datasets: [{
+                        label: 'Sinal (%)',
+                        data: top5.map(n => Math.round(n.quality)),
+                        backgroundColor: '#1d4ed8',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, max: 100 } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function updateRadar(networks) {
+            const container = document.getElementById('radar-visual-container');
+            const pointsLayer = document.getElementById('radar-points-layer');
+            
+            container.classList.remove('hide');
+            pointsLayer.innerHTML = ''; // Limpa pontos antigos
+
+            if (!networks || networks.length === 0) return;
+
+            // Vamos espalhar as redes em um círculo (360 graus)
+            // Como não temos a direção real, distribuímos elas para visualização
+            const step = 360 / networks.length;
+
+            networks.forEach((net, index) => {
+                const angle = index * step;
+                // Quanto maior o sinal (quality), menor a distância do centro (inverso)
+                // Quality vai de 0 a 100. Queremos um raio de 0 a 150px (metade do radar)
+                const radius = 150 - (net.quality * 1.4); // 1.4 é fator de escala
+                
+                // Converter Polar (Raio, Ângulo) para Cartesiano (X, Y)
+                const x = 50 + (radius * Math.cos(angle * Math.PI / 180) / 1.6); // 1.6 compensa o tamanho do sonar
+                const y = 50 + (radius * Math.sin(angle * Math.PI / 180) / 1.6);
+
+                const point = document.createElement('div');
+                point.className = 'radar-point';
+                
+                // Cor baseada na segurança/sinal
+                let color = '#3b82f6';
+                if (net.security.level === 'Vulneravel') color = 'var(--red)';
+                else if (net.quality > 75) color = 'var(--green)';
+                else if (net.quality > 40) color = 'var(--yellow)';
+
+                point.style.left = `${x}%`;
+                point.style.top = `${y}%`;
+                point.style.color = color;
+                point.style.backgroundColor = color;
+                
+                point.setAttribute('data-ssid', net.ssid);
+                point.title = `${net.ssid} (${net.signal} dBm)`;
+
+                pointsLayer.appendChild(point);
+            });
+        }
+    </script>
+</body>
+
+</html>
